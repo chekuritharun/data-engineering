@@ -87,7 +87,6 @@ data-engineering/
 git clone https://github.com/chekuritharun/data-engineering.git
 cd data-engineering
 ```
-
 ---
 
 ###  Step 2: Setup Environment Variables
