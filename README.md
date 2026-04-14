@@ -395,6 +395,8 @@ Ingestion Layer: Replace the polling ETL with a message broker like Apache Kafka
 Processing Layer: Use distributed streaming frameworks like Apache Spark Streaming or Apache Flink to consume from Kafka and perform windowed transformations (VWAP).
 Storage: Move from a single relational DB to a Data Lake (S3/GCS) for raw storage and a high-performance NoSQL/OLAP database (like ClickHouse, Druid, or Cassandra) for queryable processed data.
 Compute: Deploy the processing jobs on a Kubernetes cluster (EKS/GKE) for elastic scaling.
+
+
 2. Monitoring
 Health Checks:
 API: /health or endpoint verification (already in docker-compose).
@@ -403,6 +405,8 @@ Metrics & Tools:
 Use Prometheus to collect metrics like records_processed, error_rate, and latency.
 Use Grafana for visualization.
 Implement alerts (e.g., PagerDuty) if the pipeline lag increases or success rate drops.
+
+
 3. Recovery / Idempotency
 Idempotency: The use of a composite Primary Key (instrument_id, timestamp) with ON CONFLICT DO NOTHING ensures that if a batch is partially processed and retried, duplicates are not created.
 Checkpointing: In a streaming system, Kafka consumer offsets ensure we resume from the last successfully acknowledged record.
