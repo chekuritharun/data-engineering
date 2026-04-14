@@ -2,10 +2,7 @@
 
 1. Clone the repository:
 
-```bash
-git clone https://github.com/chekuritharun/data-engineering.git
-cd data-engineering
-```
+
 
 2. Create `.env` file (based on reference):
 
