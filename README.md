@@ -1,97 +1,19 @@
- End-to-End Data Engineering & Infrastructure Project
+ Setup Instructions
 
- Overview
-
-This project demonstrates a complete **data engineering pipeline** that simulates real-time market data ingestion, processing, validation, and storage using modern tools and best practices.
-
-The system is designed to be:
-
-* **Scalable**
-* **Resilient (Fault-tolerant)**
-* **Containerized (Docker-based)**
-* **Production-ready**
-
----
-
- Architecture
-
-The solution consists of three main components:
-
- 1. Source API (FastAPI)
-
-* Simulates real-time financial market data
-* Provides endpoint: `/v1/market-data`
-* Includes **fault injection (5%)** to test pipeline resilience
-
-2. ETL Pipeline (Python)
-
-* Extracts data from API
-* Validates using **Pydantic**
-* Performs transformations:
-
-  * VWAP calculation
-  * Outlier detection
-* Loads cleaned data into PostgreSQL
-
-3. Sink (PostgreSQL)
-
-* Stores processed, validated, and deduplicated data
-* Ensures **data integrity using primary keys**
-
----
-
-## Data Flow
-
-```
-FastAPI → ETL Pipeline → PostgreSQL
-```
-
-1. API generates synthetic data
-2. ETL fetches and validates data
-3. Applies business logic (VWAP, outliers)
-4. Stores clean data in DB
-
----
-
- Features
-
-*  Fault-tolerant API (Chaos Engineering)
-*  Schema validation using Pydantic
-* zVWAP (Volume Weighted Average Price)
-* Outlier detection (±15%)
-*  Duplicate prevention (Primary Key)
-*  Structured logging
-*  Fully Dockerized setup
-
----
-
-##  Project Structure
-
-```
-data-engineering/
-│
-├── api/                # FastAPI service
-├── etl/                # ETL pipeline
-├── docker-compose.yml  # Orchestration
-├── .env                # Environment variables
-├── README.md
-```
-
----
-
-##  How to Run the Project
-
-###  Step 1: Clone Repository
+1. Clone the repository:
 
 ```bash
 git clone https://github.com/chekuritharun/data-engineering.git
 cd data-engineering
 ```
----
 
-###  Step 2: Setup Environment Variables
+2. Create `.env` file (based on reference):
 
-Create a `.env` file:
+```bash
+cp .env.example .env
+```
+
+3. Update `.env`:
 
 ```env
 DB_NAME=market
@@ -99,9 +21,18 @@ DB_USER=postgres
 DB_PASS=postgres
 ```
 
+4. Ensure Docker and Docker Compose are installed:
+
+```bash
+docker --version
+docker-compose --version
+```
+
 ---
 
-### Step 3: Run Docker Containers
+##  How to Run the System
+
+Run the following command from project root:
 
 ```bash
 docker-compose up --build
@@ -109,29 +40,321 @@ docker-compose up --build
 
 This will start:
 
-* API → http://localhost:8000
-* PostgreSQL → port 5432
-* ETL pipeline → runs automatically
+* FastAPI server (API)
+* PostgreSQL database
+* ETL pipeline
 
 ---
+##  API Example
 
-###  Step 4: Create Database Table
+**Endpoint:**
 
-Connect to PostgreSQL and run:
+```http
+GET /v1/market-data
+```
 
-```sql
-CREATE TABLE market_data (
-    instrument_id TEXT,
-    price FLOAT,
-    volume FLOAT,
-    timestamp TIMESTAMP,
-    PRIMARY KEY (instrument_id, timestamp)
-);
+**Sample Response:**
+
+```json
+[
+  {
+    "instrument_id": "AAPL",
+    "price": 172.21,
+    "volume": 120.5,
+    "timestamp": "2026-03-12T10:00:00Z"
+  }
+]
 ```
 
 ---
 
-###  Step 5: Test API
+##  Fault Injection (Chaos Engineering)
+
+To simulate real-world failures:
+
+* **5% of requests are faulty**
+
+  * **2.5%** → HTTP 500 Internal Server Error
+  * **2.5%** → Malformed data (e.g., `"price": "INVALID"`)
+
+ Purpose:
+
+* Test ETL resilience
+* Validate retry and error handling logic
+
+---
+
+##  Database Schema
+
+**Table:** `market_data`
+
+| Column        | Type      | Description         |
+| ------------- | --------- | ------------------- |
+| instrument_id | TEXT      | Stock/Crypto ticker |
+| price         | FLOAT     | Market price        |
+| volume        | FLOAT     | Trade volume        |
+| timestamp     | TIMESTAMP | Record time         |
+| vwap          | FLOAT     | Calculated VWAP     |
+| is_outlier    | BOOLEAN   | Outlier flag        |
+
+**Primary Key:**
+
+```sql
+(instrument_id, timestamp)
+```
+
+---
+
+##  ETL Pipeline Details
+
+###  Extraction
+
+* Polls API every few seconds
+* Handles:
+
+  * Network timeouts
+  * API failures
+  * Fault injection errors
+
+---
+
+###  Schema Validation
+
+* Uses **Pydantic models**
+* Drops invalid records
+
+---
+
+###  Transformation
+
+#### VWAP Calculation
+
+```text
+VWAP = Σ(price × volume) / Σ(volume)
+```
+
+####  Outlier Detection
+
+* Flag records where:
+
+```text
+|price - avg_price| > 15%
+```
+
+---
+
+### Load & Logging
+
+* Inserts data using:
+
+```sql
+ON CONFLICT DO NOTHING
+```
+
+* Ensures:
+
+  * No duplicates
+  * Idempotent processing
+
+* Logs include:
+
+  * records_processed
+  * records_dropped
+  * execution_time
+
+---
+
+##  Docker Infrastructure
+
+### Services:
+
+* **api**
+
+  * FastAPI service
+  * Port: 8000
+
+* **etl**
+
+  * Python ETL pipeline
+  * Runs continuously
+
+* **db**
+
+  * PostgreSQL database
+
+---
+
+##  Docker Networking
+
+* ETL connects to DB using:
+
+```text
+host = db
+```
+
+* API accessed internally via:
+
+```text
+http://api:8000
+```
+
+---
+
+##  System Flow
+
+1. API generates synthetic data
+2. Fault injection simulates failures
+3. ETL fetches and validates data
+4. Applies VWAP + outlier logic
+5. Stores clean data in PostgreSQL
+6. Logs processing metrics
+
+---
+
+##  ETL Log Examples
+
+```json
+{
+  "level": "INFO",
+  "message": "Batch processed",
+  "records_processed": 10,
+  "records_dropped": 2,
+  "execution_time_seconds": 1.5
+}
+```
+
+---
+
+##  Error Handling Logs
+
+```json
+{
+  "level": "WARNING",
+  "message": "API request failed, retrying..."
+}
+```
+
+```json
+{
+  "level": "WARNING",
+  "message": "Validation failed for record"
+}
+```
+
+---
+
+## Database Queries
+
+###  Check Record Count
+
+```sql
+SELECT COUNT(*) FROM market_data;
+```
+
+---
+
+### 🔹 View Latest Records
+
+```sql
+SELECT * FROM market_data
+ORDER BY timestamp DESC
+LIMIT 5;
+```
+
+---
+
+### Find Outliers
+
+```sql
+SELECT * FROM market_data WHERE is_outlier = true;
+```
+
+---
+
+###  VWAP Analysis
+
+```sql
+SELECT instrument_id, AVG(vwap)
+FROM market_data
+GROUP BY instrument_id;
+```
+
+---
+
+## System Monitoring
+
+###  Health Checks
+
+* API:
+
+```bash
+curl http://localhost:8000/v1/market-data
+```
+
+* Database:
+
+* Verify connection + table
+
+* ETL:
+
+* Check logs for "Batch processed"
+
+---
+
+###  Metrics
+
+* Throughput → records/sec
+* Error rate → failed batches
+* Latency → processing time
+
+---
+
+##  Docker Monitoring
+
+```bash
+docker-compose ps
+docker-compose logs api
+docker-compose logs etl
+docker-compose logs db
+```
+
+---
+
+##  Troubleshooting
+
+###  ETL cannot connect to API
+
+* Ensure API is running on port 8000
+* Check Docker network
+
+---
+
+###  Database connection error
+
+* Verify `.env` credentials
+* Ensure DB container is healthy
+
+---
+
+###  Port conflict
+
+```bash
+lsof -i :8000
+kill -9 <PID>
+```
+
+---
+
+###  Validation errors
+
+* Expected due to fault injection
+* Check logs for malformed data
+
+---
+
+##  Debug Commands
+
+### Test API
 
 ```bash
 curl http://localhost:8000/v1/market-data
@@ -139,132 +362,51 @@ curl http://localhost:8000/v1/market-data
 
 ---
 
-##  ETL Logic Explained
+### Check DB (PostgreSQL)
 
-###  Extraction
-
-* Polls API every 10 seconds
-* Handles:
-
-  * Timeouts
-  * API failures (500 errors)
-
----
-
-###  Validation
-
-* Uses **Pydantic**
-* Drops invalid records
-
----
-
-###  Transformation
-
-#### 1. VWAP Calculation
-
-```
-VWAP = Σ(price × volume) / Σ(volume)
-```
-
-#### 2. Outlier Detection
-
-* Drops records where:
-
-```
-|price - avg_price| > 15%
+```bash
+docker exec -it <container_id> psql -U postgres
 ```
 
 ---
 
-###  Loading
+### View ETL Logs
 
-* Inserts into PostgreSQL
-* Uses:
-
-```sql
-ON CONFLICT DO NOTHING
+```bash
+docker-compose logs -f etl
 ```
 
-→ Prevents duplicates
+---
+
+##  Summary
+
+This system demonstrates:
+
+* Fault-tolerant data ingestion
+* Data validation & quality control
+* Scalable ETL architecture
+* Containerized deployment
 
 ---
 
-##  Logging
+System Design Questions
 
-Tracks:
+1. Scaling for 1 Billion Events per Day
+To scale for ~12,000 events per second (1 billion/day):
 
-* Total records processed
-* Dropped records
-* Errors
-* Execution time
-
----
-
-##  System Design Answers
-
-###  1. Scaling (1 Billion Events/day)
-
-To scale:
-
-* Use **Kafka** for ingestion
-* Use **Spark/Flink** for processing
-* Store in **Data Lake (S3/ADLS)**
-* Deploy on **Kubernetes**
-* Use **Delta Lake / Iceberg**
-
----
-
-###  2. Monitoring
-
-Implement:
-
-* Health check endpoint (`/health`)
-* Prometheus + Grafana
-* Centralized logging (ELK stack)
-
-Monitor:
-
-* API latency
-* ETL failures
-* Data drops
-
----
-
-###  3. Recovery & Idempotency
-
-Ensured using:
-
-* Primary key (instrument_id + timestamp)
-* UPSERT (`ON CONFLICT DO NOTHING`)
-* Checkpointing
-* Safe reprocessing
-
----
-
-##  Future Improvements
-
-* Add **Kafka streaming pipeline**
-* Use **Apache Airflow** for orchestration
-* Deploy on **AWS/Azure**
-* Add **CI/CD pipeline**
-* Implement **data partitioning**
-
----
-
-##  Key Learnings
-
-* Building fault-tolerant pipelines
-* Data validation and quality control
-* Real-time ingestion concepts
-* Docker-based deployment
-* Production-ready system design
-
----
-
-
-
-
-
-
-
- 
+Ingestion Layer: Replace the polling ETL with a message broker like Apache Kafka or AWS Kinesis. The API would push events to a "raw-data" topic.
+Processing Layer: Use distributed streaming frameworks like Apache Spark Streaming or Apache Flink to consume from Kafka and perform windowed transformations (VWAP).
+Storage: Move from a single relational DB to a Data Lake (S3/GCS) for raw storage and a high-performance NoSQL/OLAP database (like ClickHouse, Druid, or Cassandra) for queryable processed data.
+Compute: Deploy the processing jobs on a Kubernetes cluster (EKS/GKE) for elastic scaling.
+2. Monitoring
+Health Checks:
+API: /health or endpoint verification (already in docker-compose).
+ETL: Use a heartbeat mechanism or push metrics to a gateway.
+Metrics & Tools:
+Use Prometheus to collect metrics like records_processed, error_rate, and latency.
+Use Grafana for visualization.
+Implement alerts (e.g., PagerDuty) if the pipeline lag increases or success rate drops.
+3. Recovery / Idempotency
+Idempotency: The use of a composite Primary Key (instrument_id, timestamp) with ON CONFLICT DO NOTHING ensures that if a batch is partially processed and retried, duplicates are not created.
+Checkpointing: In a streaming system, Kafka consumer offsets ensure we resume from the last successfully acknowledged record.
+Atomic Transactions: Use database transactions for batch inserts to ensure either all records in a batch are committed or none are (all-or-nothing).
