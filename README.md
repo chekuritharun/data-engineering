@@ -23,7 +23,7 @@ data-engineering/
 
 
 
- TASK 4: README Answers (IMPORTANT)
+ TASK 4: 
 1. Scaling (1 Billion Events)
 
 Answer:
