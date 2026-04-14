@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    ports:
+      - "5432:5432"
+
+  etl:
+    build: ./etl
+    depends_on:
+      - api
+      - db
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
